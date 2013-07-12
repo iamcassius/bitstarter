@@ -22,7 +22,6 @@ References:
 */
 
 var fs = require('fs');
-var rest = require('restler');
 var program = require('commander');
 var cheerio = require('cheerio');
 var HTMLFILE_DEFAULT = "index.html";
@@ -46,23 +45,15 @@ var loadChecks = function(checksfile) {
 };
 
 var checkHtmlFile = function(htmlfile, checksfile) {
-    return checkCheerio(cheerioHtmlFile(htmlfile), checksfile);
+    $ = cheerioHtmlFile(htmlfile);
+    var checks = loadChecks(checksfile).sort();
+    var out = {};
+    for(var ii in checks) {
+        var present = $(checks[ii]).length > 0;
+        out[checks[ii]] = present;
+    }
+    return out;
 };
-
-var checkHtmlUrl = function(html) {
-		var checkJson = checkCheerio(cheerio.load(html));
-		outputCheck(checkJson);
-};
-
-var checkCheerio = function($, checksfile) {
-	 var checks = loadChecks(checksfile).sort();
- 	 var out = {};
- 	 for(var ii in checks) {
- 	     var present = $(checks[ii]).length > 0;
- 	     out[checks[ii]] = present;
- 	 }
-	 return out;
-}
 
 var clone = function(fn) {
     // Workaround for commander.js issue.
@@ -70,24 +61,14 @@ var clone = function(fn) {
     return fn.bind({});
 };
 
-var outputCheck = function(checkJson) {
-		var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
-};
-
 if(require.main == module) {
     program
-        .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
-        .option('-u, --url <url>', 'Url to index.html')
+        .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .parse(process.argv);
-		if(program.file) {
-    	var checkJson = checkHtmlFile(program.file, program.checks);
-			outputCheck(checkJson);
-    } else if (program.url) {
-			console.log("About to make resler request...");
-			rest.get(program.url).on('success', checkHtmlUrl); 
-		}
+    var checkJson = checkHtmlFile(program.file, program.checks);
+    var outJson = JSON.stringify(checkJson, null, 4);
+    console.log(outJson);
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
